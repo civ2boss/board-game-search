@@ -87,7 +87,7 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
         .filter((id): id is string => id !== null); // Ensure the array only contains strings
 
       const searchResults = await fetchGameDetails(firstPageIds);
-      console.log(searchResults[0]);
+
       setResults(searchResults);
       setPage(1);
     } catch (error) {
