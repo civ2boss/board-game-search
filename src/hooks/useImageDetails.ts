@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+"use compiler";
+
+import { useState, useEffect } from 'react';
 import { proxyImageUrl } from '../utils';
 
 interface ImageDetails {
@@ -13,8 +15,7 @@ const imageDetailsCache = new Map<string, ImageDetails>();
 export function useImageDetails(gameIds: string[]) {
   const [details, setDetails] = useState<Record<string, ImageDetails>>({});
 
-  // Memoize the gameIds array to prevent unnecessary re-renders
-  const memoizedGameIds = useMemo(() => gameIds.sort().join(','), [gameIds]);
+  const gameIdsString = gameIds.sort().join(',');
 
   useEffect(() => {
     // Initialize with cached values first
@@ -95,7 +96,7 @@ export function useImageDetails(gameIds: string[]) {
         isMounted = false;
       };
     }
-  }, [memoizedGameIds]); // Only depend on the memoized string
+  }, [gameIdsString]);
 
   return details;
 }
