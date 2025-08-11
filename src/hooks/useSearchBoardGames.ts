@@ -1,3 +1,5 @@
+"use compiler";
+
 import { useQuery } from '@tanstack/react-query';
 import type { SearchResult } from '../App';
 

@@ -1,7 +1,9 @@
+"use compiler";
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { debounce, fetchGameDetails, searchBoardGames } from '../utils'; // Updated import
-import type { SearchResult } from '../hooks/useSearchBoardGames';
+import type { SearchResult } from '../App';
 
 interface SearchBarProps {
   onGameSelect: (gameId: string) => void;
@@ -44,20 +46,16 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
   const loadMoreResults = async () => {
     if (!allItems.length) return;
 
-    const nextItems = allItems.slice(
-      page * itemsPerPage,
-      (page + 1) * itemsPerPage
-    );
+    const nextIds = allItems
+      .slice(page * itemsPerPage, (page + 1) * itemsPerPage)
+      .map((item) => item.getAttribute('id'))
+      .filter((id): id is string => id !== null);
 
-    if (nextItems.length === 0) return;
+    if (nextIds.length === 0) return;
 
     setIsLoading(true);
     try {
-      const gameIds = nextItems
-        .map((item) => item.getAttribute('id'))
-        .filter((id): id is string => id !== null); // Filter out null values
-
-      const newResults = await fetchGameDetails(gameIds);
+      const newResults = await fetchGameDetails(nextIds);
       if (newResults.length > 0) {
         setResults((prev) => [...prev, ...newResults]);
         setPage((p) => p + 1);
