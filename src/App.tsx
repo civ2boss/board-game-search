@@ -1,3 +1,5 @@
+"use compiler";
+
 import { useState } from 'react';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
@@ -18,11 +20,12 @@ export interface SearchResult {
   type: string;
 }
 
+const queryClient = new QueryClient();
+
 function App() {
   const [games, setGames] = useState<Game[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const queryClient = new QueryClient();
 
   const handleGameSelect = async (gameId: string) => {
     // Check if the game is already in the games array

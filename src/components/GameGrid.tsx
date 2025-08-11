@@ -1,3 +1,5 @@
+"use compiler";
+
 import { X, Download } from 'lucide-react';
 import { Game } from '../types';
 import { useImageDetails } from '../hooks/useImageDetails';
