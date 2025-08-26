@@ -1,8 +1,8 @@
 "use compiler";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Search } from 'lucide-react';
-import { debounce, fetchGameDetails, searchBoardGames } from '../utils'; // Updated import
+import { debounce, fetchGameDetails, searchBoardGames } from '../utils';
 import type { SearchResult } from '../App';
 
 interface SearchBarProps {
@@ -15,10 +15,15 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [page, setPage] = useState(1);
-  const [allItems, setAllItems] = useState<Element[]>([]);
+  const [allIds, setAllIds] = useState<string[]>([]);
   const searchRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const itemsPerPage = 5;
+  
+  // Add a ref to track the current search request
+  const currentSearchId = useRef<number>(0);
+  const abortRef = useRef<AbortController | null>(null);
+  const detailsCacheRef = useRef<Map<string, SearchResult>>(new Map());
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -34,6 +39,13 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Add unmount cleanup to abort any in-flight request
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
   const handleScroll = () => {
     if (!dropdownRef.current || isLoading) return;
 
@@ -44,58 +56,94 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
   };
 
   const loadMoreResults = async () => {
-    if (!allItems.length) return;
+    if (!allIds.length || isLoading) return;
 
-    const nextIds = allItems
-      .slice(page * itemsPerPage, (page + 1) * itemsPerPage)
-      .map((item) => item.getAttribute('id'))
-      .filter((id): id is string => id !== null);
-
+    const nextIds = allIds.slice(page * itemsPerPage, (page + 1) * itemsPerPage);
     if (nextIds.length === 0) return;
+
+    const toFetch = nextIds.filter((id) => !detailsCacheRef.current.has(id));
 
     setIsLoading(true);
     try {
-      const newResults = await fetchGameDetails(nextIds);
+      if (toFetch.length) {
+        abortRef.current?.abort();
+        abortRef.current = new AbortController();
+        const fetched = await fetchGameDetails(toFetch, abortRef.current.signal);
+        fetched.forEach((r) => detailsCacheRef.current.set(r.id, r));
+      }
+
+      const newResults = nextIds
+        .map((id) => detailsCacheRef.current.get(id))
+        .filter((r): r is SearchResult => !!r);
+
       if (newResults.length > 0) {
         setResults((prev) => [...prev, ...newResults]);
         setPage((p) => p + 1);
       }
-    } catch (error) {
-      console.error('Error loading more results:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error('Error loading more results:', error);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const searchGames = debounce(async (searchQuery: string) => {
-    if (!searchQuery.trim()) {
-      setResults([]);
-      setAllItems([]);
-      return;
-    }
+  const searchGames = useCallback(
+    debounce(async (searchQuery: string) => {
+      if (!searchQuery.trim()) {
+        setResults([]);
+        setAllIds([]);
+        return;
+      }
 
-    setIsLoading(true);
-    try {
-      const items = await searchBoardGames(searchQuery);
-      setAllItems(items);
+      const searchId = ++currentSearchId.current;
 
-      const firstPageIds = items
-        .slice(0, itemsPerPage)
-        .map((item) => item.getAttribute('id'))
-        .filter((id): id is string => id !== null); // Ensure the array only contains strings
+      // Cancel previous in-flight work
+      abortRef.current?.abort();
+      abortRef.current = new AbortController();
 
-      const searchResults = await fetchGameDetails(firstPageIds);
+      setIsLoading(true);
+      try {
+        const items = await searchBoardGames(searchQuery, abortRef.current.signal);
+        if (searchId !== currentSearchId.current) return;
 
-      setResults(searchResults);
-      setPage(1);
-    } catch (error) {
-      console.error('Error searching games:', error);
-      setResults([]);
-      setAllItems([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, 300);
+        const ids = items
+          .map((item) => item.getAttribute('id'))
+          .filter((id): id is string => !!id);
+
+        setAllIds(ids);
+
+        const firstPageIds = ids.slice(0, itemsPerPage);
+        const toFetch = firstPageIds.filter((id) => !detailsCacheRef.current.has(id));
+
+        if (toFetch.length) {
+          const fetched = await fetchGameDetails(toFetch, abortRef.current.signal);
+          if (searchId !== currentSearchId.current) return;
+          fetched.forEach((r) => detailsCacheRef.current.set(r.id, r));
+        }
+
+        const firstResults = firstPageIds
+          .map((id) => detailsCacheRef.current.get(id))
+          .filter((r): r is SearchResult => !!r);
+
+        setResults(firstResults);
+        setPage(1);
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name === 'AbortError') return;
+        if (searchId === currentSearchId.current) {
+          console.error('Error searching games:', error);
+          setResults([]);
+          setAllIds([]);
+        }
+      } finally {
+        if (searchId === currentSearchId.current) {
+          setIsLoading(false);
+        }
+      }
+    }, 300),
+    []
+  );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -144,7 +192,7 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
             >
               {result.thumbnail && (
                 <img
-                  src={`https://cf.geekdo-images.com${result.thumbnail}`}
+                  src={result.thumbnail.startsWith('http') ? result.thumbnail : `https://cf.geekdo-images.com${result.thumbnail}`}
                   alt={result.name}
                   className="w-16 h-16 object-cover rounded-md"
                   loading="lazy"
