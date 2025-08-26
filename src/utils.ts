@@ -1,12 +1,12 @@
 import type { SearchResult } from './App';
 
-export function debounce<T extends (...args: any[]) => void>(
-  func: T,
+export function debounce<TArgs extends unknown[]>(
+  func: (...args: TArgs) => unknown,
   wait: number
-): (...args: Parameters<T>) => void {
+): (...args: TArgs) => void {
   let timeout: NodeJS.Timeout;
 
-  return (...args: Parameters<T>) => {
+  return (...args: TArgs) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
   };
@@ -28,13 +28,15 @@ export function proxyImageUrl(url: string): string {
 }
 
 export async function fetchGameDetails(
-  gameIds: string[]
+  gameIds: string[],
+  signal?: AbortSignal
 ): Promise<SearchResult[]> {
   if (!gameIds.length) return [];
 
   try {
     const response = await fetch(
-      `https://boardgamegeek.com/xmlapi2/thing?id=${gameIds.join(',')}&stats=1`
+      `https://boardgamegeek.com/xmlapi2/thing?id=${gameIds.join(',')}&stats=1`,
+      { signal }
     );
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -62,12 +64,13 @@ export async function fetchGameDetails(
   }
 }
 
-export async function searchBoardGames(query: string) {
+export async function searchBoardGames(query: string, signal?: AbortSignal) {
   try {
     const response = await fetch(
       `https://boardgamegeek.com/xmlapi2/search?query=${encodeURIComponent(
         query
-      )}&type=boardgame`
+      )}&type=boardgame`,
+      { signal }
     );
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
