@@ -4,6 +4,23 @@ import { X, Download } from 'lucide-react';
 import { Game } from '../types';
 import { useImageDetails } from '../hooks/useImageDetails';
 
+async function downloadResizedPng(src: string, name: string) {
+  const isDev = import.meta.env.DEV;
+  const endpoint = isDev ? '/img/convert' : '/api/convert';
+  const url = `${endpoint}?url=${encodeURIComponent(src)}`;
+  const res = await fetch(url);
+  if (!res.ok) return;
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  const objectUrl = URL.createObjectURL(blob);
+  a.href = objectUrl;
+  a.download = `${name}.png`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
 interface GameGridProps {
   games: Game[];
   removeGame: (id: string) => void;
@@ -36,22 +53,15 @@ export function GameGrid({ games, removeGame }: GameGridProps) {
               loading="lazy"
             />
             {game.image && (
-              <a
-                href={game.image}
-                download
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={() => downloadResizedPng(game.image!, game.name)}
                 className="absolute bottom-4 right-4 p-2 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors duration-150 group"
                 title={
                   imageDetails[game.id]
-                    ? `Download image (${imageDetails[game.id].width}x${
+                    ? `Download PNG 500px max (${imageDetails[game.id].width}x${
                         imageDetails[game.id].height
-                      }${
-                        imageDetails[game.id].size
-                          ? `, ${imageDetails[game.id].size}`
-                          : ''
                       })`
-                    : 'Download image'
+                    : 'Download PNG 500px max'
                 }
               >
                 <Download className="w-5 h-5 text-gray-700 group-hover:animate-bounce" />
@@ -62,7 +72,7 @@ export function GameGrid({ games, removeGame }: GameGridProps) {
                       `, ${imageDetails[game.id].size}`}
                   </div>
                 )}
-              </a>
+              </button>
             )}
             <button
               onClick={() => removeGame(game.id)}
