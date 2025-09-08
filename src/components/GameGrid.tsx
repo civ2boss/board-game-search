@@ -84,7 +84,7 @@ export function GameGrid({ games, removeGame }: GameGridProps) {
           </div>
           <div className="p-4">
             <h3 className="text-lg font-semibold text-gray-800 line-clamp-2">
-              <a href={`https://boardgamegeek.com/boardgame/${game.id}`}>
+              <a href={`https://boardgamegeek.com/boardgame/${game.id}`} target="_blank" rel="noopener noreferrer">
                 {game.name}
               </a>
             </h3>
