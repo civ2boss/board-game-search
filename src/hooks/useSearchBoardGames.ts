@@ -13,7 +13,12 @@ export function useSearchBoardGames(query: string) {
         const response = await fetch(
           `https://boardgamegeek.com/xmlapi2/search?query=${encodeURIComponent(
             query
-          )}&type=boardgame`
+          )}&type=boardgame`,
+          {
+            headers: {
+              'Authorization': `Bearer ${import.meta.env.VITE_BGG_API_KEY}`
+            }
+          }
         );
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
