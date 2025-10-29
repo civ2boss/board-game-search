@@ -36,7 +36,7 @@ export async function fetchGameDetails(
   try {
     const response = await fetch(
       `https://boardgamegeek.com/xmlapi2/thing?id=${gameIds.join(',')}&stats=1`,
-      { signal }
+      { signal, headers: { 'Authorization': `Bearer ${import.meta.env.VITE_BGG_API_KEY}` } }
     );
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -70,7 +70,7 @@ export async function searchBoardGames(query: string, signal?: AbortSignal) {
       `https://boardgamegeek.com/xmlapi2/search?query=${encodeURIComponent(
         query
       )}&type=boardgame`,
-      { signal }
+      { signal, headers: { 'Authorization': `Bearer ${import.meta.env.VITE_BGG_API_KEY}` } }
     );
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

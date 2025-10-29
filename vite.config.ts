@@ -53,7 +53,7 @@ export default defineConfig({
             res.end(output);
           } catch (err) {
             res.statusCode = 500;
-            res.end('Error converting image');
+            res.end(`Error converting image: ${err}`);
           }
         });
       },

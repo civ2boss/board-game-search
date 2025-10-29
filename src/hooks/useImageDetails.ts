@@ -40,7 +40,11 @@ export function useImageDetails(gameIds: string[]) {
     if (uncachedIds.length > 0) {
       let isMounted = true;
 
-      fetch(`https://boardgamegeek.com/xmlapi2/thing?id=${uncachedIds.join(',')}`)
+      fetch(`https://boardgamegeek.com/xmlapi2/thing?id=${uncachedIds.join(',')}`,{
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_BGG_API_KEY}`
+        }
+      })
         .then(response => response.text())
         .then(text => {
           if (!isMounted) return;
