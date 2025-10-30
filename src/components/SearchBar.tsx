@@ -1,5 +1,3 @@
-"use compiler";
-
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Search } from 'lucide-react';
 import { debounce, fetchGameDetails, searchBoardGames } from '../utils';

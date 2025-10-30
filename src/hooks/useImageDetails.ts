@@ -1,5 +1,3 @@
-"use compiler";
-
 import { useState, useEffect } from 'react';
 import { proxyImageUrl } from '../utils';
 
