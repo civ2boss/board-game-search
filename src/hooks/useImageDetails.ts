@@ -100,7 +100,7 @@ export function useImageDetails(gameIds: string[]) {
         isMounted = false;
       };
     }
-  }, [gameIdsString]);
+  }, [gameIdsString, gameIds]);
 
   return details;
 }

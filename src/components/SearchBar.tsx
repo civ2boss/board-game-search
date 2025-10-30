@@ -1,6 +1,6 @@
 "use compiler";
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Search } from 'lucide-react';
 import { debounce, fetchGameDetails, searchBoardGames } from '../utils';
 import type { SearchResult } from '../App';
@@ -89,61 +89,59 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
     }
   };
 
-  const searchGames = useCallback(
-    debounce(async (searchQuery: string) => {
-      if (!searchQuery.trim()) {
+  const doSearch = useCallback(async (searchQuery: string) => {
+    if (!searchQuery.trim()) {
+      setResults([]);
+      setAllIds([]);
+      return;
+    }
+
+    const searchId = ++currentSearchId.current;
+
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+
+    setIsLoading(true);
+    try {
+      const items = await searchBoardGames(searchQuery, abortRef.current.signal);
+      if (searchId !== currentSearchId.current) return;
+
+      const ids = items
+        .map((item) => item.getAttribute('id'))
+        .filter((id): id is string => !!id);
+
+      setAllIds(ids);
+
+      const firstPageIds = ids.slice(0, itemsPerPage);
+      const toFetch = firstPageIds.filter((id) => !detailsCacheRef.current.has(id));
+
+      if (toFetch.length) {
+        const fetched = await fetchGameDetails(toFetch, abortRef.current.signal);
+        if (searchId !== currentSearchId.current) return;
+        fetched.forEach((r) => detailsCacheRef.current.set(r.id, r));
+      }
+
+      const firstResults = firstPageIds
+        .map((id) => detailsCacheRef.current.get(id))
+        .filter((r): r is SearchResult => !!r);
+
+      setResults(firstResults);
+      setPage(1);
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'AbortError') return;
+      if (searchId === currentSearchId.current) {
+        console.error('Error searching games:', error);
         setResults([]);
         setAllIds([]);
-        return;
       }
-
-      const searchId = ++currentSearchId.current;
-
-      // Cancel previous in-flight work
-      abortRef.current?.abort();
-      abortRef.current = new AbortController();
-
-      setIsLoading(true);
-      try {
-        const items = await searchBoardGames(searchQuery, abortRef.current.signal);
-        if (searchId !== currentSearchId.current) return;
-
-        const ids = items
-          .map((item) => item.getAttribute('id'))
-          .filter((id): id is string => !!id);
-
-        setAllIds(ids);
-
-        const firstPageIds = ids.slice(0, itemsPerPage);
-        const toFetch = firstPageIds.filter((id) => !detailsCacheRef.current.has(id));
-
-        if (toFetch.length) {
-          const fetched = await fetchGameDetails(toFetch, abortRef.current.signal);
-          if (searchId !== currentSearchId.current) return;
-          fetched.forEach((r) => detailsCacheRef.current.set(r.id, r));
-        }
-
-        const firstResults = firstPageIds
-          .map((id) => detailsCacheRef.current.get(id))
-          .filter((r): r is SearchResult => !!r);
-
-        setResults(firstResults);
-        setPage(1);
-      } catch (error: unknown) {
-        if (error instanceof Error && error.name === 'AbortError') return;
-        if (searchId === currentSearchId.current) {
-          console.error('Error searching games:', error);
-          setResults([]);
-          setAllIds([]);
-        }
-      } finally {
-        if (searchId === currentSearchId.current) {
-          setIsLoading(false);
-        }
+    } finally {
+      if (searchId === currentSearchId.current) {
+        setIsLoading(false);
       }
-    }, 300),
-    []
-  );
+    }
+  }, [itemsPerPage]);
+
+  const searchGames = useMemo(() => debounce(doSearch, 300), [doSearch]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
