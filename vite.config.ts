@@ -6,7 +6,13 @@ import sharp from 'sharp';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    react(),
+    react({
+      babel: {
+        plugins: [
+          'babel-plugin-react-compiler',
+        ],
+      },
+    }),
     {
       name: 'image-convert-middleware',
       configureServer(server) {
