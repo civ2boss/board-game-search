@@ -46,18 +46,43 @@ export async function fetchGameDetails(
     const doc = parser.parseFromString(text, 'text/xml');
 
     const items = doc.getElementsByTagName('item');
-    return Array.from(items).map((item) => ({
-      id: item.getAttribute('id') || '',
-      name: item.getElementsByTagName('name')[0]?.getAttribute('value') || '',
-      thumbnail: proxyImageUrl(
-        item.getElementsByTagName('thumbnail')[0]?.textContent || ''
-      ),
-      image: item.getElementsByTagName('image')[0]?.textContent || '',
-      year_published:
-        item.getElementsByTagName('yearpublished')[0]?.getAttribute('value') ||
-        '',
-      type: item.getAttribute('type') || '',
-    }));
+    return Array.from(items).map((item) => {
+      let rank: number | null = null;
+      const stats = item.getElementsByTagName('statistics')[0];
+      if (stats) {
+        const ratings = stats.getElementsByTagName('ratings')[0];
+        if (ratings) {
+          const ranks = ratings.getElementsByTagName('rank');
+          for (let i = 0; i < ranks.length; i++) {
+            const rankEl = ranks[i];
+            if (rankEl.getAttribute('name') === 'boardgame') {
+              const value = rankEl.getAttribute('value');
+              if (value && value !== '0' && value !== 'Not Ranked') {
+                rank = parseInt(value, 10);
+                if (isNaN(rank)) {
+                  rank = null;
+                }
+              }
+              break;
+            }
+          }
+        }
+      }
+
+      return {
+        id: item.getAttribute('id') || '',
+        name: item.getElementsByTagName('name')[0]?.getAttribute('value') || '',
+        thumbnail: proxyImageUrl(
+          item.getElementsByTagName('thumbnail')[0]?.textContent || ''
+        ),
+        image: item.getElementsByTagName('image')[0]?.textContent || '',
+        year_published:
+          item.getElementsByTagName('yearpublished')[0]?.getAttribute('value') ||
+          '',
+        type: item.getAttribute('type') || '',
+        rank,
+      };
+    });
   } catch (error) {
     console.error('Error fetching game details:', error);
     return [];

@@ -5,4 +5,5 @@ export interface Game {
   thumbnail: string;
   year_published: string;
   type: string;
+  rank: number | null;
 }

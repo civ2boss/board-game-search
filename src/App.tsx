@@ -16,6 +16,7 @@ export interface SearchResult {
   image: string;
   year_published: string;
   type: string;
+  rank: number | null;
 }
 
 const queryClient = new QueryClient();
@@ -50,6 +51,7 @@ function App() {
           year_published: result.year_published,
           type: result.type,
           image: result.image,
+          rank: result.rank ?? null,
         }));
 
         setGames((prev) => [...prev, ...newGames]);
