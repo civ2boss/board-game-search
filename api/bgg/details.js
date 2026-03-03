@@ -1,18 +1,31 @@
+function getQueryParams(req) {
+  const url = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
+  const params = {};
+  url.searchParams.forEach((value, key) => {
+    params[key] = value;
+  });
+  return params;
+}
+
 export default async function handler(req, res) {
   try {
-    const ids = req.query?.ids || '';
+    const queryParams = getQueryParams(req);
+    const ids = queryParams.ids || '';
+    
     if (!ids.trim()) {
-      res.status(400).json({ error: 'Missing ids parameter' });
+      res.statusCode = 400;
+      res.end(JSON.stringify({ error: 'Missing ids parameter' }));
       return;
     }
 
     const apiKey = process.env.BGG_API_KEY;
     if (!apiKey) {
-      res.status(500).json({ error: 'API key not configured' });
+      res.statusCode = 500;
+      res.end(JSON.stringify({ error: 'API key not configured' }));
       return;
     }
 
-    const stats = req.query?.stats === '1' ? '&stats=1' : '';
+    const stats = queryParams.stats === '1' ? '&stats=1' : '';
 
     const response = await fetch(
       `https://boardgamegeek.com/xmlapi2/thing?id=${ids}${stats}`,
@@ -24,16 +37,19 @@ export default async function handler(req, res) {
     );
 
     if (!response.ok) {
-      res.status(response.status).json({ error: 'BGG API error' });
+      res.statusCode = response.status;
+      res.end(JSON.stringify({ error: 'BGG API error' }));
       return;
     }
 
     const text = await response.text();
     res.setHeader('Content-Type', 'application/xml');
     res.setHeader('Cache-Control', 'public, max-age=3600');
-    res.status(200).send(text);
+    res.statusCode = 200;
+    res.end(text);
   } catch (error) {
     console.error('Error proxying BGG details:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.statusCode = 500;
+    res.end(JSON.stringify({ error: 'Internal server error' }));
   }
 }
