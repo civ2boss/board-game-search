@@ -23,15 +23,10 @@ export default defineConfig(({ mode }) => {
           // Handle /api/bgg/search
           server.middlewares.use('/api/bgg/search', async (req, res) => {
             try {
-              const url = new URL(req.url || '', 'http://localhost');
-              const query = url.searchParams.get('q');
-              console.log('[BGG Search] Query:', query);
-              console.log('[BGG Search] API Key exists:', !!env.BGG_API_KEY);
-              
               // Pass env to handler via req
               // @ts-expect-error - adding custom property
               req.bggApiKey = env.BGG_API_KEY;
-              
+
               // @ts-expect-error - no types for JS module
               const { default: handler } = await import('./api/bgg/search.js');
               await handler(req, res);
@@ -45,15 +40,10 @@ export default defineConfig(({ mode }) => {
           // Handle /api/bgg/details
           server.middlewares.use('/api/bgg/details', async (req, res) => {
             try {
-              const url = new URL(req.url || '', 'http://localhost');
-              const ids = url.searchParams.get('ids');
-              console.log('[BGG Details] IDs:', ids);
-              console.log('[BGG Details] API Key exists:', !!env.BGG_API_KEY);
-              
               // Pass env to handler via req
               // @ts-expect-error - adding custom property
               req.bggApiKey = env.BGG_API_KEY;
-              
+
               // @ts-expect-error - no types for JS module
               const { default: handler } = await import('./api/bgg/details.js');
               await handler(req, res);
@@ -125,14 +115,6 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, './src'),
       },
     },
-    server: {
-      proxy: {
-        '/img/api': {
-          target: 'https://cf.geekdo-images.com',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/img\/api/, ''),
-        },
-      },
-    },
+
   };
 });
