@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Build output
+.nitro
+.output
+
+# Local Agent/Tooling state
+.sidecar
+.todos
