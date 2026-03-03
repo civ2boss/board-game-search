@@ -18,7 +18,9 @@ export default async function handler(req, res) {
       return;
     }
 
-    const apiKey = process.env.BGG_API_KEY;
+    // Get API key from request (set by middleware) or fallback to env
+    // @ts-expect-error - custom property added by middleware
+    const apiKey = req.bggApiKey || process.env.BGG_API_KEY;
     if (!apiKey) {
       res.statusCode = 500;
       res.end(JSON.stringify({ error: 'API key not configured' }));
