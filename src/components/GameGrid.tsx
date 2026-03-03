@@ -1,6 +1,7 @@
 import { X, Download } from 'lucide-react';
 import { Game } from '../types';
 import { useImageDetails } from '../hooks/useImageDetails';
+import { proxyImageUrl } from '../utils';
 
 async function downloadResizedPng(src: string, name: string) {
   const isDev = import.meta.env.DEV;
@@ -41,11 +42,7 @@ export function GameGrid({ games, removeGame }: GameGridProps) {
         >
           <div className="relative aspect-[3/4] overflow-hidden bg-gray-100">
             <img
-              src={
-                game.image
-                  ? game.image
-                  : `https://cf.geekdo-images.com${game.thumbnail}`
-              }
+              src={proxyImageUrl(game.image || game.thumbnail)}
               alt={game.name}
               className="w-full h-full object-cover"
               loading="lazy"

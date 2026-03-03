@@ -12,19 +12,14 @@ export function debounce<TArgs extends unknown[]>(
   };
 }
 
-// Helper function to convert BGG image URLs to use our proxy
+// Helper function to ensure BGG image URLs are complete
 export function proxyImageUrl(url: string): string {
   if (!url) return '';
-  try {
-    const urlObj = new URL(url);
-    if (urlObj.hostname === 'cf.geekdo-images.com') {
-      return `/img/api${urlObj.pathname}${urlObj.search}`;
-    } else {
-      return `/img/api/${url}`;
-    }
-  } catch {
-    return url;
-  }
+  // If it's already a full URL, return as-is
+  if (url.startsWith('http')) return url;
+  // If it's a path, prepend the BGG domain
+  if (url.startsWith('/')) return `https://cf.geekdo-images.com${url}`;
+  return url;
 }
 
 export async function fetchGameDetails(
