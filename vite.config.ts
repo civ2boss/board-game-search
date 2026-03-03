@@ -75,10 +75,10 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': {
+      '/img/api': {
         target: 'https://cf.geekdo-images.com',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
+        rewrite: (path) => path.replace(/^\/img\/api/, ''),
       },
     },
   },

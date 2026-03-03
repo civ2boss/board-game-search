@@ -18,9 +18,9 @@ export function proxyImageUrl(url: string): string {
   try {
     const urlObj = new URL(url);
     if (urlObj.hostname === 'cf.geekdo-images.com') {
-      return `${urlObj.pathname}${urlObj.search}`;
+      return `/img/api${urlObj.pathname}${urlObj.search}`;
     } else {
-      return `https://cf.geekdo-images.com/${url}`;
+      return `/img/api/${url}`;
     }
   } catch {
     return url;
