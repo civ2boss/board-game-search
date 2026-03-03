@@ -6,7 +6,7 @@ export function debounce<TArgs extends unknown[]>(
 ): (...args: TArgs) => void {
   let timeout: NodeJS.Timeout;
 
-  return (...args: TArgs) => {
+  return (...args) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
   };
@@ -35,8 +35,8 @@ export async function fetchGameDetails(
 
   try {
     const response = await fetch(
-      `https://boardgamegeek.com/xmlapi2/thing?id=${gameIds.join(',')}&stats=1`,
-      { signal, headers: { 'Authorization': `Bearer ${import.meta.env.VITE_BGG_API_KEY}` } }
+      `/api/bgg/details?ids=${gameIds.join(',')}&stats=1`,
+      { signal }
     );
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -92,10 +92,8 @@ export async function fetchGameDetails(
 export async function searchBoardGames(query: string, signal?: AbortSignal) {
   try {
     const response = await fetch(
-      `https://boardgamegeek.com/xmlapi2/search?query=${encodeURIComponent(
-        query
-      )}&type=boardgame`,
-      { signal, headers: { 'Authorization': `Bearer ${import.meta.env.VITE_BGG_API_KEY}` } }
+      `/api/bgg/search?q=${encodeURIComponent(query)}`,
+      { signal }
     );
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
