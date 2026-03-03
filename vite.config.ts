@@ -19,26 +19,36 @@ export default defineConfig({
         // Handle /api/bgg/search
         server.middlewares.use('/api/bgg/search', async (req, res) => {
           try {
+            const url = new URL(req.url || '', 'http://localhost');
+            const query = url.searchParams.get('q');
+            console.log('[BGG Search] Query:', query);
+            console.log('[BGG Search] API Key exists:', !!process.env.BGG_API_KEY);
+            
             // @ts-expect-error - no types for JS module
             const { default: handler } = await import('./api/bgg/search.js');
             await handler(req, res);
           } catch (err) {
-            console.error('Error in /api/bgg/search:', err);
+            console.error('[BGG Search] Error:', err);
             res.statusCode = 500;
-            res.end(JSON.stringify({ error: 'Internal server error' }));
+            res.end(JSON.stringify({ error: 'Internal server error', details: String(err) }));
           }
         });
 
         // Handle /api/bgg/details
         server.middlewares.use('/api/bgg/details', async (req, res) => {
           try {
+            const url = new URL(req.url || '', 'http://localhost');
+            const ids = url.searchParams.get('ids');
+            console.log('[BGG Details] IDs:', ids);
+            console.log('[BGG Details] API Key exists:', !!process.env.BGG_API_KEY);
+            
             // @ts-expect-error - no types for JS module
             const { default: handler } = await import('./api/bgg/details.js');
             await handler(req, res);
           } catch (err) {
-            console.error('Error in /api/bgg/details:', err);
+            console.error('[BGG Details] Error:', err);
             res.statusCode = 500;
-            res.end(JSON.stringify({ error: 'Internal server error' }));
+            res.end(JSON.stringify({ error: 'Internal server error', details: String(err) }));
           }
         });
       },
