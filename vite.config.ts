@@ -14,6 +14,36 @@ export default defineConfig({
       },
     }),
     {
+      name: 'bgg-api-middleware',
+      configureServer(server) {
+        // Handle /api/bgg/search
+        server.middlewares.use('/api/bgg/search', async (req, res) => {
+          try {
+            // @ts-expect-error - no types for JS module
+            const { default: handler } = await import('./api/bgg/search.js');
+            await handler(req, res);
+          } catch (err) {
+            console.error('Error in /api/bgg/search:', err);
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: 'Internal server error' }));
+          }
+        });
+
+        // Handle /api/bgg/details
+        server.middlewares.use('/api/bgg/details', async (req, res) => {
+          try {
+            // @ts-expect-error - no types for JS module
+            const { default: handler } = await import('./api/bgg/details.js');
+            await handler(req, res);
+          } catch (err) {
+            console.error('Error in /api/bgg/details:', err);
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: 'Internal server error' }));
+          }
+        });
+      },
+    },
+    {
       name: 'image-convert-middleware',
       configureServer(server) {
         server.middlewares.use('/img/convert', async (req, res) => {
