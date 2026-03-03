@@ -9,14 +9,7 @@ export function useSearchBoardGames(query: string) {
 
       try {
         const response = await fetch(
-          `https://boardgamegeek.com/xmlapi2/search?query=${encodeURIComponent(
-            query
-          )}&type=boardgame`,
-          {
-            headers: {
-              'Authorization': `Bearer ${import.meta.env.VITE_BGG_API_KEY}`
-            }
-          }
+          `/api/bgg/search?q=${encodeURIComponent(query)}`
         );
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -43,6 +36,6 @@ export function useSearchBoardGames(query: string) {
         return [];
       }
     },
-    staleTime: 0, // Adjust based on your requirements
+    staleTime: 0,
   });
 }

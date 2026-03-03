@@ -6,25 +6,20 @@ export function debounce<TArgs extends unknown[]>(
 ): (...args: TArgs) => void {
   let timeout: NodeJS.Timeout;
 
-  return (...args: TArgs) => {
+  return (...args) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
   };
 }
 
-// Helper function to convert BGG image URLs to use our proxy
+// Helper function to ensure BGG image URLs are complete
 export function proxyImageUrl(url: string): string {
   if (!url) return '';
-  try {
-    const urlObj = new URL(url);
-    if (urlObj.hostname === 'cf.geekdo-images.com') {
-      return `${urlObj.pathname}${urlObj.search}`;
-    } else {
-      return `https://cf.geekdo-images.com/${url}`;
-    }
-  } catch {
-    return url;
-  }
+  // If it's already a full URL, return as-is
+  if (url.startsWith('http')) return url;
+  // If it's a path, prepend the BGG domain
+  if (url.startsWith('/')) return `https://cf.geekdo-images.com${url}`;
+  return url;
 }
 
 export async function fetchGameDetails(
@@ -35,8 +30,8 @@ export async function fetchGameDetails(
 
   try {
     const response = await fetch(
-      `https://boardgamegeek.com/xmlapi2/thing?id=${gameIds.join(',')}&stats=1`,
-      { signal, headers: { 'Authorization': `Bearer ${import.meta.env.VITE_BGG_API_KEY}` } }
+      `/api/bgg/details?ids=${gameIds.join(',')}&stats=1`,
+      { signal }
     );
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -92,10 +87,8 @@ export async function fetchGameDetails(
 export async function searchBoardGames(query: string, signal?: AbortSignal) {
   try {
     const response = await fetch(
-      `https://boardgamegeek.com/xmlapi2/search?query=${encodeURIComponent(
-        query
-      )}&type=boardgame`,
-      { signal, headers: { 'Authorization': `Bearer ${import.meta.env.VITE_BGG_API_KEY}` } }
+      `/api/bgg/search?q=${encodeURIComponent(query)}`,
+      { signal }
     );
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
