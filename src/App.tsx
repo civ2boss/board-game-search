@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
+import { useScrollDepth } from '@/hooks/useScrollDepth';
 import { Loader2 } from 'lucide-react';
 import { SearchBar } from './components/SearchBar';
 import { GameGrid } from './components/GameGrid';
@@ -25,6 +26,7 @@ function App() {
   const [games, setGames] = useState<Game[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  useScrollDepth();
 
   const handleGameSelect = async (gameId: string) => {
     // Check if the game is already in the games array
