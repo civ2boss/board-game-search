@@ -1,20 +1,22 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
-import { Search, ArrowUp } from "lucide-react";
-import { debounce, fetchGameDetails, searchBoardGames } from "../utils";
-import type { SearchResult } from "../App";
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Search, ArrowUp } from 'lucide-react';
+import { usePostHog } from 'posthog-js/react';
+import { debounce, fetchGameDetails, searchBoardGames } from '../utils';
+import type { SearchResult } from '../App';
 
 interface SearchBarProps {
   onGameSelect: (gameId: string) => void;
 }
 
 export function SearchBar({ onGameSelect }: SearchBarProps) {
-  const [query, setQuery] = useState("");
+  const posthog = usePostHog();
+  const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [page, setPage] = useState(1);
   const [allIds, setAllIds] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState<"relevance" | "rank">("rank");
+  const [sortBy, setSortBy] = useState<'relevance' | 'rank'>('rank');
   const searchRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const itemsPerPage = 20;
@@ -25,7 +27,7 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
   const detailsCacheRef = useRef<Map<string, SearchResult>>(new Map());
 
   const sortedResults = useMemo(() => {
-    if (sortBy === "rank") {
+    if (sortBy === 'rank') {
       return [...results].sort((a, b) => {
         if (a.rank === null && b.rank === null) return 0;
         if (a.rank === null) return 1;
@@ -46,8 +48,8 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // Add unmount cleanup to abort any in-flight request
@@ -98,8 +100,8 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
         setPage((p) => p + 1);
       }
     } catch (error: unknown) {
-      if (error instanceof Error && error.name !== "AbortError") {
-        console.error("Error loading more results:", error);
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error('Error loading more results:', error);
       }
     } finally {
       setIsLoading(false);
@@ -130,7 +132,7 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
           if (searchId !== currentSearchId.current) return;
 
           const ids = items
-            .map((item) => item.getAttribute("id"))
+            .map((item) => item.getAttribute('id'))
             .filter((id): id is string => !!id);
 
           setAllIds(ids);
@@ -155,10 +157,15 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
 
           setResults(firstResults);
           setPage(1);
+
+          posthog?.capture('boardgame_searched', {
+            query: searchQuery,
+            results_count: ids.length,
+          });
         } catch (error: unknown) {
-          if (error instanceof Error && error.name === "AbortError") return;
+          if (error instanceof Error && error.name === 'AbortError') return;
           if (searchId === currentSearchId.current) {
-            console.error("Error searching games:", error);
+            console.error('Error searching games:', error);
             setResults([]);
             setAllIds([]);
           }
@@ -168,7 +175,7 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
           }
         }
       }, 300),
-    [],
+    [posthog],
   );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,6 +189,11 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
     setQuery(result.name);
     setShowResults(false);
     onGameSelect(result.id);
+    posthog?.capture('boardgame_selected', {
+      game_id: result.id,
+      game_name: result.name,
+      year_published: result.year_published,
+    });
   };
 
   const handleFocus = () => {
@@ -206,21 +218,21 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
 
       <div className="flex gap-2 mt-2">
         <button
-          onClick={() => setSortBy("relevance")}
+          onClick={() => setSortBy('relevance')}
           className={`px-3 py-1 text-sm rounded-md transition-colors ${
-            sortBy === "relevance"
-              ? "bg-indigo-600 text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            sortBy === 'relevance'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
           }`}
         >
           Relevance
         </button>
         <button
-          onClick={() => setSortBy("rank")}
+          onClick={() => setSortBy('rank')}
           className={`px-3 py-1 text-sm rounded-md transition-colors flex items-center gap-1 ${
-            sortBy === "rank"
-              ? "bg-indigo-600 text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            sortBy === 'rank'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
           }`}
         >
           Rank
@@ -243,7 +255,7 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
               {result.thumbnail && (
                 <img
                   src={
-                    result.thumbnail.startsWith("http")
+                    result.thumbnail.startsWith('http')
                       ? result.thumbnail
                       : `https://cf.geekdo-images.com${result.thumbnail}`
                   }
@@ -253,7 +265,7 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
                 />
               )}
               <span className="flex-1">{result.name}</span>
-              {result.type === "boardgameexpansion" ? (
+              {result.type === 'boardgameexpansion' ? (
                 <span className="bg-red-500 p-1.5 rounded-full">Expansion</span>
               ) : null}
               <span>{result.year_published}</span>
