@@ -1,14 +1,22 @@
 import { X, Download } from 'lucide-react';
+import { usePostHog } from 'posthog-js/react';
 import { Game } from '../types';
 import { useImageDetails } from '../hooks/useImageDetails';
 import { proxyImageUrl } from '../utils';
 
-async function downloadResizedPng(src: string, name: string) {
+async function downloadResizedPng(
+  src: string,
+  name: string,
+  posthog: ReturnType<typeof usePostHog>,
+) {
   const isDev = import.meta.env.DEV;
   const endpoint = isDev ? '/img/convert' : '/api/convert';
   const url = `${endpoint}?url=${encodeURIComponent(src)}`;
   const res = await fetch(url);
-  if (!res.ok) return;
+  if (!res.ok) {
+    posthog?.capture('image_download_failed', { game_name: name });
+    return;
+  }
   const blob = await res.blob();
   const a = document.createElement('a');
   const objectUrl = URL.createObjectURL(blob);
@@ -18,6 +26,7 @@ async function downloadResizedPng(src: string, name: string) {
   a.click();
   a.remove();
   URL.revokeObjectURL(objectUrl);
+  posthog?.capture('image_downloaded', { game_name: name });
 }
 
 interface GameGridProps {
@@ -26,8 +35,17 @@ interface GameGridProps {
 }
 
 export function GameGrid({ games, removeGame }: GameGridProps) {
+  const posthog = usePostHog();
   const gameIds = games.map((game) => game.id);
   const imageDetails = useImageDetails(gameIds);
+
+  const handleRemoveGame = (game: Game) => {
+    removeGame(game.id);
+    posthog?.capture('boardgame_removed', {
+      game_id: game.id,
+      game_name: game.name,
+    });
+  };
 
   if (games.length === 0) {
     return null;
@@ -49,7 +67,9 @@ export function GameGrid({ games, removeGame }: GameGridProps) {
             />
             {game.image && (
               <button
-                onClick={() => downloadResizedPng(game.image!, game.name)}
+                onClick={() =>
+                  downloadResizedPng(game.image!, game.name, posthog)
+                }
                 className="absolute bottom-4 right-4 p-2 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors duration-150 group"
                 title={
                   imageDetails[game.id]
@@ -70,7 +90,7 @@ export function GameGrid({ games, removeGame }: GameGridProps) {
               </button>
             )}
             <button
-              onClick={() => removeGame(game.id)}
+              onClick={() => handleRemoveGame(game)}
               className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 transition-colors duration-150 grid place-content-center backdrop-filter backdrop-blur-sm hover:animate-[spin_1s_ease-in-out]"
               title="Remove game"
             >
@@ -79,7 +99,11 @@ export function GameGrid({ games, removeGame }: GameGridProps) {
           </div>
           <div className="p-4">
             <h3 className="text-lg font-semibold text-gray-800 line-clamp-2">
-              <a href={`https://boardgamegeek.com/boardgame/${game.id}`} target="_blank" rel="noopener noreferrer">
+              <a
+                href={`https://boardgamegeek.com/boardgame/${game.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 {game.name}
               </a>
             </h3>
