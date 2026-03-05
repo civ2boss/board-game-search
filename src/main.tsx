@@ -10,6 +10,7 @@ posthog.init(import.meta.env.VITE_PUBLIC_POSTHOG_TOKEN, {
   defaults: '2026-01-30',
   capture_pageleave: true,
   capture_performance: true,
+  persistence: 'memory',
 });
 
 createRoot(document.getElementById('root')!).render(
