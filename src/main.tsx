@@ -7,6 +7,7 @@ import { PostHogProvider } from '@posthog/react';
 
 posthog.init(import.meta.env.VITE_PUBLIC_POSTHOG_TOKEN, {
   api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
+  ui_host: 'https://us.posthog.com',
   defaults: '2026-01-30',
   capture_pageleave: true,
   capture_performance: true,
