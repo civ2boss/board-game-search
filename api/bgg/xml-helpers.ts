@@ -97,6 +97,21 @@ const xmlParser = new XMLParser({
   trimValues: true,
 });
 
+/**
+ * Decode HTML entities (&#039; &amp; &quot; etc.) that appear in BGG attribute values.
+ * fast-xml-parser decodes XML entities but not HTML entities in attribute strings.
+ */
+function decodeHtmlEntities(str: string): string {
+  if (!str) return str;
+  return str
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)))
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"');
+}
+
 /** Ensure a value is an array; wrap single items. */
 function toArray<T>(val: T | T[] | undefined | null): T[] {
   if (!val) return [];
@@ -115,7 +130,7 @@ export function parseSearchXml(xml: string): { items: SearchResult[] } {
   return {
     items: items.map((item) => ({
       id: String(item.id ?? ''),
-      name: item.name?.value ?? '',
+      name: decodeHtmlEntities(item.name?.value ?? ''),
       type: item.type ?? '',
     })),
   };
@@ -175,7 +190,7 @@ export function parseDetailsXml(xml: string): { items: DetailsResult[] } {
 
       return {
         id: String(item.id ?? ''),
-        name: nameEntry?.value ?? '',
+        name: decodeHtmlEntities(nameEntry?.value ?? ''),
         thumbnail,
         image,
         year_published: String(item.yearpublished?.value ?? ''),
