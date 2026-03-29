@@ -50,8 +50,8 @@ export function useSearchBoardGames(query: string) {
   });
 
   const allIds = searchQuery.data?.map(item => item.id) || [];
-  // Cap details fetch to avoid BGG API URL length limits
-  const MAX_DETAILS = 50;
+  // Cap details fetch to avoid BGG API limits (BGG rejects >20 IDs per request)
+  const MAX_DETAILS = 20;
   const ids = allIds.slice(0, MAX_DETAILS);
 
   const detailsQuery = useQuery({
