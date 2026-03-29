@@ -1,28 +1,29 @@
-function getQueryParams(req) {
-  const url = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
-  const params = {};
-  url.searchParams.forEach((value, key) => {
-    params[key] = value;
-  });
-  return params;
+import type { IncomingMessage, ServerResponse } from 'http';
+import { parseSearchXml, getQueryParams } from './xml-helpers.js';
+
+interface BggRequest extends IncomingMessage {
+  bggApiKey?: string;
 }
 
-export default async function handler(req, res) {
+export default async function handler(
+  req: BggRequest,
+  res: ServerResponse
+): Promise<void> {
   try {
     const queryParams = getQueryParams(req);
     const query = queryParams.q || '';
-    
+
     if (!query.trim()) {
       res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'Missing query parameter' }));
       return;
     }
 
-    // Get API key from request (set by middleware) or fallback to env
-    // @ts-expect-error - custom property added by middleware
     const apiKey = req.bggApiKey || process.env.BGG_API_KEY;
     if (!apiKey) {
       res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'API key not configured' }));
       return;
     }
@@ -33,25 +34,31 @@ export default async function handler(req, res) {
       )}&type=boardgame`,
       {
         headers: {
-          'Authorization': `Bearer ${apiKey}`
-        }
+          Authorization: `Bearer ${apiKey}`,
+        },
       }
     );
 
     if (!response.ok) {
       res.statusCode = response.status;
+      res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'BGG API error' }));
       return;
     }
 
     const text = await response.text();
-    res.setHeader('Content-Type', 'application/xml');
+
+    // Parse XML to JSON on the server — type-checked by parseSearchXml
+    const result = parseSearchXml(text);
+
+    res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'public, max-age=3600');
     res.statusCode = 200;
-    res.end(text);
+    res.end(JSON.stringify(result));
   } catch (error) {
     console.error('Error proxying BGG search:', error);
     res.statusCode = 500;
+    res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({ error: 'Internal server error' }));
   }
 }

@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, ArrowUp } from 'lucide-react';
 import { usePostHog } from 'posthog-js/react';
-import { debounce, fetchGameDetails, searchBoardGames } from '../utils';
-import type { SearchResult } from '../App';
+import { useSearchBoardGames } from '../hooks/useSearchBoardGames';
+import { useDebounce } from '../hooks/useDebounce';
+import type { Game } from '../types';
 
 interface SearchBarProps {
   onGameSelect: (gameId: string) => void;
@@ -11,32 +12,48 @@ interface SearchBarProps {
 export function SearchBar({ onGameSelect }: SearchBarProps) {
   const posthog = usePostHog();
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [page, setPage] = useState(1);
-  const [allIds, setAllIds] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<'relevance' | 'rank'>('rank');
   const searchRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const itemsPerPage = 20;
 
-  // Add a ref to track the current search request
-  const currentSearchId = useRef<number>(0);
-  const abortRef = useRef<AbortController | null>(null);
-  const detailsCacheRef = useRef<Map<string, SearchResult>>(new Map());
+  const debouncedQuery = useDebounce(query, 300);
+  const { results: allResults, allIds, isLoading, isFetching } = useSearchBoardGames(debouncedQuery);
+
+  // Paginated display of results
+  const displayedResults = useMemo(() => {
+    return allResults.slice(0, page * itemsPerPage);
+  }, [allResults, page]);
 
   const sortedResults = useMemo(() => {
     if (sortBy === 'rank') {
-      return [...results].sort((a, b) => {
+      return [...displayedResults].sort((a, b) => {
         if (a.rank === null && b.rank === null) return 0;
         if (a.rank === null) return 1;
         if (b.rank === null) return -1;
         return a.rank - b.rank;
       });
     }
-    return results;
-  }, [results, sortBy]);
+    return displayedResults;
+  }, [displayedResults, sortBy]);
+
+  // Track search analytics when results change
+  useEffect(() => {
+    if (debouncedQuery.trim() && allIds.length > 0 && !isLoading) {
+      posthog?.capture('boardgame_searched', {
+        query: debouncedQuery,
+        results_count: allIds.length,
+      });
+    }
+  }, [debouncedQuery, allIds.length, isLoading, posthog]);
+
+  // Reset page when query changes
+  useEffect(() => {
+    setPage(1);
+    setShowResults(true);
+  }, [debouncedQuery]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -52,15 +69,8 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Add unmount cleanup to abort any in-flight request
-  useEffect(() => {
-    return () => {
-      abortRef.current?.abort();
-    };
-  }, []);
-
   const handleScroll = () => {
-    if (!dropdownRef.current || isLoading) return;
+    if (!dropdownRef.current || isLoading || isFetching) return;
 
     const { scrollTop, scrollHeight, clientHeight } = dropdownRef.current;
     if (scrollTop + clientHeight >= scrollHeight - 20) {
@@ -68,124 +78,18 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
     }
   };
 
-  const loadMoreResults = async () => {
-    if (!allIds.length || isLoading) return;
-
-    const nextIds = allIds.slice(
-      page * itemsPerPage,
-      (page + 1) * itemsPerPage,
-    );
-    if (nextIds.length === 0) return;
-
-    const toFetch = nextIds.filter((id) => !detailsCacheRef.current.has(id));
-
-    setIsLoading(true);
-    try {
-      if (toFetch.length) {
-        abortRef.current?.abort();
-        abortRef.current = new AbortController();
-        const fetched = await fetchGameDetails(
-          toFetch,
-          abortRef.current.signal,
-        );
-        fetched.forEach((r) => detailsCacheRef.current.set(r.id, r));
-      }
-
-      const newResults = nextIds
-        .map((id) => detailsCacheRef.current.get(id))
-        .filter((r): r is SearchResult => !!r);
-
-      if (newResults.length > 0) {
-        setResults((prev) => [...prev, ...newResults]);
-        setPage((p) => p + 1);
-      }
-    } catch (error: unknown) {
-      if (error instanceof Error && error.name !== 'AbortError') {
-        console.error('Error loading more results:', error);
-      }
-    } finally {
-      setIsLoading(false);
-    }
+  const loadMoreResults = () => {
+    if (!allIds.length || displayedResults.length >= allResults.length) return;
+    setPage((p) => p + 1);
   };
-
-  const searchGames = useMemo(
-    () =>
-      debounce(async (searchQuery: string) => {
-        if (!searchQuery.trim()) {
-          setResults([]);
-          setAllIds([]);
-          return;
-        }
-
-        const searchId = ++currentSearchId.current;
-
-        // Cancel previous in-flight work
-        abortRef.current?.abort();
-        abortRef.current = new AbortController();
-
-        setIsLoading(true);
-        try {
-          const items = await searchBoardGames(
-            searchQuery,
-            abortRef.current.signal,
-          );
-          if (searchId !== currentSearchId.current) return;
-
-          const ids = items
-            .map((item) => item.getAttribute('id'))
-            .filter((id): id is string => !!id);
-
-          setAllIds(ids);
-
-          const firstPageIds = ids.slice(0, itemsPerPage);
-          const toFetch = firstPageIds.filter(
-            (id) => !detailsCacheRef.current.has(id),
-          );
-
-          if (toFetch.length) {
-            const fetched = await fetchGameDetails(
-              toFetch,
-              abortRef.current.signal,
-            );
-            if (searchId !== currentSearchId.current) return;
-            fetched.forEach((r) => detailsCacheRef.current.set(r.id, r));
-          }
-
-          const firstResults = firstPageIds
-            .map((id) => detailsCacheRef.current.get(id))
-            .filter((r): r is SearchResult => !!r);
-
-          setResults(firstResults);
-          setPage(1);
-
-          posthog?.capture('boardgame_searched', {
-            query: searchQuery,
-            results_count: ids.length,
-          });
-        } catch (error: unknown) {
-          if (error instanceof Error && error.name === 'AbortError') return;
-          if (searchId === currentSearchId.current) {
-            console.error('Error searching games:', error);
-            setResults([]);
-            setAllIds([]);
-          }
-        } finally {
-          if (searchId === currentSearchId.current) {
-            setIsLoading(false);
-          }
-        }
-      }, 300),
-    [posthog],
-  );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setQuery(value);
     setShowResults(true);
-    searchGames(value);
   };
 
-  const handleSelectGame = (result: SearchResult) => {
+  const handleSelectGame = (result: Game) => {
     setQuery(result.name);
     setShowResults(false);
     onGameSelect(result.id);
@@ -197,7 +101,7 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
   };
 
   const handleFocus = () => {
-    if (results.length > 0 || isLoading) {
+    if (displayedResults.length > 0 || isLoading || isFetching) {
       setShowResults(true);
     }
   };
@@ -218,6 +122,7 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
 
       <div className="flex gap-2 mt-2">
         <button
+          type="button"
           onClick={() => setSortBy('relevance')}
           className={`px-3 py-1 text-sm rounded-md transition-colors ${
             sortBy === 'relevance'
@@ -228,6 +133,7 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
           Relevance
         </button>
         <button
+          type="button"
           onClick={() => setSortBy('rank')}
           className={`px-3 py-1 text-sm rounded-md transition-colors flex items-center gap-1 ${
             sortBy === 'rank'
@@ -240,7 +146,7 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
         </button>
       </div>
 
-      {showResults && (results.length > 0 || isLoading) && (
+      {showResults && (displayedResults.length > 0 || isLoading || isFetching) && (
         <div
           ref={dropdownRef}
           onScroll={handleScroll}
@@ -248,17 +154,14 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
         >
           {sortedResults.map((result) => (
             <button
+              type="button"
               key={result.id}
               onClick={() => handleSelectGame(result)}
               className="w-full text-left px-4 py-3 hover:bg-indigo-50 transition-colors duration-150 border-b last:border-b-0 flex items-center gap-4"
             >
               {result.thumbnail && (
                 <img
-                  src={
-                    result.thumbnail.startsWith('http')
-                      ? result.thumbnail
-                      : `https://cf.geekdo-images.com${result.thumbnail}`
-                  }
+                  src={result.thumbnail}
                   alt={result.name}
                   className="w-16 h-16 object-cover rounded-md"
                   loading="lazy"
@@ -271,8 +174,8 @@ export function SearchBar({ onGameSelect }: SearchBarProps) {
               <span>{result.year_published}</span>
             </button>
           ))}
-          {isLoading && (
-            <div className="p-4 text-center text-gray-500">Loading more...</div>
+          {(isLoading || isFetching) && (
+            <div className="p-4 text-center text-gray-500">Loading...</div>
           )}
         </div>
       )}

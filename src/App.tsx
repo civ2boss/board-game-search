@@ -7,18 +7,6 @@ import { SearchBar } from './components/SearchBar';
 import { GameGrid } from './components/GameGrid';
 import { Game } from './types';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
-import { fetchGameDetails } from './utils';
-
-// Define or import the SearchResult type
-export interface SearchResult {
-  id: string;
-  name: string;
-  thumbnail: string;
-  image: string;
-  year_published: string;
-  type: string;
-  rank: number | null;
-}
 
 const queryClient = new QueryClient();
 
@@ -42,21 +30,23 @@ function App() {
     setIsLoading(true);
 
     try {
-      // Use fetchGameDetails to get the game details
-      const newResults: SearchResult[] = await fetchGameDetails([gameId]);
-      if (newResults.length > 0) {
-        // Map SearchResult to Game type
-        const newGames = newResults.map((result: SearchResult) => ({
-          id: result.id,
-          name: result.name,
-          thumbnail: result.thumbnail,
-          year_published: result.year_published,
-          type: result.type,
-          image: result.image,
-          rank: result.rank ?? null,
-        }));
-
-        setGames((prev) => [...prev, ...newGames]);
+      // Fetch game details via API (now returns JSON)
+      const response = await fetch(`/api/bgg/details?ids=${gameId}&stats=1`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      
+      if (data.items && data.items.length > 0) {
+        const item = data.items[0];
+        const newGame: Game = {
+          id: item.id,
+          name: item.name,
+          thumbnail: item.thumbnail,
+          year_published: item.year_published,
+          type: item.type,
+          image: item.image,
+          rank: item.rank ?? null,
+        };
+        setGames((prev) => [...prev, newGame]);
       }
     } catch (error) {
       console.error('Error fetching game details:', error);

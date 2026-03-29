@@ -27,8 +27,7 @@ export default defineConfig(({ mode }) => {
               // @ts-expect-error - adding custom property
               req.bggApiKey = env.BGG_API_KEY;
 
-              // @ts-expect-error - no types for JS module
-              const { default: handler } = await import('./api/bgg/search.js');
+              const { default: handler } = await import('./api/bgg/search.ts');
               await handler(req, res);
             } catch (err) {
               console.error('[BGG Search] Error:', err);
@@ -44,8 +43,7 @@ export default defineConfig(({ mode }) => {
               // @ts-expect-error - adding custom property
               req.bggApiKey = env.BGG_API_KEY;
 
-              // @ts-expect-error - no types for JS module
-              const { default: handler } = await import('./api/bgg/details.js');
+              const { default: handler } = await import('./api/bgg/details.ts');
               await handler(req, res);
             } catch (err) {
               console.error('[BGG Details] Error:', err);
