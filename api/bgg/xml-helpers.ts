@@ -44,10 +44,10 @@ interface BggStatistics {
   ratings: BggRatings;
 }
 
-// <ratings><rank ... value="42"/><rank ... value="30"/></ratings>
-// "rank" IS an array when multiple rank elements exist
+// <ratings><ranks><rank ... value="42"/><rank ... value="30"/></ranks></ratings>
+// "ranks" wraps the rank array
 interface BggRatings {
-  rank: BggRank | BggRank[];
+  ranks: { rank: BggRank | BggRank[] };
 }
 
 // <rank type="subtype" id="1" name="boardgame" friendlyname="Board Game Rank" value="42"/>
@@ -132,10 +132,10 @@ export function parseDetailsXml(xml: string): { items: DetailsResult[] } {
 
   return {
     items: items.map((item) => {
-      // Extract rank: statistics.ratings.rank is an array of BggRank
+      // Extract rank: statistics.ratings.ranks.rank is an array of BggRank
       // We need the one where name === 'boardgame'
       let rank: number | null = null;
-      const rankEntries = toArray(item.statistics?.ratings?.rank);
+      const rankEntries = toArray(item.statistics?.ratings?.ranks?.rank);
       for (const r of rankEntries) {
         if (r.name === 'boardgame') {
           const value = String(r.value);
