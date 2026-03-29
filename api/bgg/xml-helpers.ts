@@ -59,13 +59,13 @@ interface BggRank {
   value: string | number;
 }
 
-// Parsed response containers
+// Parsed response containers — the <items> wrapper has item[] children plus attributes
 interface BggSearchResponse {
-  items: BggSearchItem | BggSearchItem[];
+  items: { item: BggSearchItem | BggSearchItem[]; total?: number; termsofuse?: string };
 }
 
 interface BggDetailsResponse {
-  items: BggDetailsItem | BggDetailsItem[];
+  items: { item: BggDetailsItem | BggDetailsItem[]; termsofuse?: string };
 }
 
 // Output types
@@ -109,7 +109,8 @@ function toArray<T>(val: T | T[] | undefined | null): T[] {
  */
 export function parseSearchXml(xml: string): { items: SearchResult[] } {
   const parsed = xmlParser.parse(xml) as BggSearchResponse;
-  const items = toArray(parsed.items);
+  // parsed.items is the <items> wrapper; .item is the actual array
+  const items = toArray(parsed.items?.item);
 
   return {
     items: items.map((item) => ({
@@ -126,7 +127,8 @@ export function parseSearchXml(xml: string): { items: SearchResult[] } {
  */
 export function parseDetailsXml(xml: string): { items: DetailsResult[] } {
   const parsed = xmlParser.parse(xml) as BggDetailsResponse;
-  const items = toArray(parsed.items);
+  // parsed.items is the <items> wrapper; .item is the actual array
+  const items = toArray(parsed.items?.item);
 
   return {
     items: items.map((item) => {
@@ -176,7 +178,7 @@ export function parseDetailsXml(xml: string): { items: DetailsResult[] } {
         name: nameEntry?.value ?? '',
         thumbnail,
         image,
-        year_published: item.yearpublished?.value ?? '',
+        year_published: String(item.yearpublished?.value ?? ''),
         type: item.type ?? '',
         rank,
         image_size: imageSize,
