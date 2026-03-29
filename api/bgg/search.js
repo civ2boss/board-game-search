@@ -1,11 +1,4 @@
-function getQueryParams(req) {
-  const url = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
-  const params = {};
-  url.searchParams.forEach((value, key) => {
-    params[key] = value;
-  });
-  return params;
-}
+import { parseSearchXml, getQueryParams } from './xml-helpers.js';
 
 export default async function handler(req, res) {
   try {
@@ -14,6 +7,7 @@ export default async function handler(req, res) {
     
     if (!query.trim()) {
       res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'Missing query parameter' }));
       return;
     }
@@ -23,6 +17,7 @@ export default async function handler(req, res) {
     const apiKey = req.bggApiKey || process.env.BGG_API_KEY;
     if (!apiKey) {
       res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'API key not configured' }));
       return;
     }
@@ -40,18 +35,24 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       res.statusCode = response.status;
+      res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'BGG API error' }));
       return;
     }
 
     const text = await response.text();
-    res.setHeader('Content-Type', 'application/xml');
+    
+    // Parse XML to JSON on the server
+    const result = parseSearchXml(text);
+    
+    res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'public, max-age=3600');
     res.statusCode = 200;
-    res.end(text);
+    res.end(JSON.stringify(result));
   } catch (error) {
     console.error('Error proxying BGG search:', error);
     res.statusCode = 500;
+    res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({ error: 'Internal server error' }));
   }
 }
