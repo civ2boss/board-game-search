@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import type { Game } from '../types';
 import { proxyImageUrl } from '../utils';
 
@@ -31,7 +32,7 @@ async function fetchDetails(ids: string[]): Promise<Game[]> {
   if (!response.ok) throw new Error(`Details failed: ${response.status}`);
   const data = await response.json();
   return (data.items || []).map((item: DetailItem) => ({
-    id: item.id,
+    id: String(item.id),
     name: item.name,
     thumbnail: proxyImageUrl(item.thumbnail),
     image: item.image,
@@ -41,29 +42,36 @@ async function fetchDetails(ids: string[]): Promise<Game[]> {
   }));
 }
 
+// BGG rejects >20 IDs per request
+const MAX_DETAILS = 20;
+
 export function useSearchBoardGames(query: string) {
   const searchQuery = useQuery({
     queryKey: ['search', query],
     queryFn: () => searchGames(query),
     enabled: query.trim().length > 0,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
-  const allIds = searchQuery.data?.map(item => item.id) || [];
-  // Cap details fetch to avoid BGG API limits (BGG rejects >20 IDs per request)
-  const MAX_DETAILS = 20;
-  const ids = allIds.slice(0, MAX_DETAILS);
+  // Memoize the sliced ID list so the reference is stable across renders
+  const ids = useMemo(() => {
+    const allIds = searchQuery.data?.map(item => item.id) || [];
+    return allIds.slice(0, MAX_DETAILS);
+  }, [searchQuery.data]);
+
+  // Use joined string as stable query key — avoids new array reference every render
+  const idsKey = ids.join(',');
 
   const detailsQuery = useQuery({
-    queryKey: ['details', ids],
+    queryKey: ['details', idsKey],
     queryFn: () => fetchDetails(ids),
     enabled: ids.length > 0,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
   return {
     results: detailsQuery.data || [],
-    allIds,
+    allIds: searchQuery.data?.map(item => item.id) || [],
     isLoading: searchQuery.isLoading || detailsQuery.isLoading,
     isFetching: searchQuery.isFetching || detailsQuery.isFetching,
     error: searchQuery.error || detailsQuery.error,
