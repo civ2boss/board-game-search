@@ -1,11 +1,4 @@
-function getQueryParams(req) {
-  const url = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
-  const params = {};
-  url.searchParams.forEach((value, key) => {
-    params[key] = value;
-  });
-  return params;
-}
+import { parseDetailsXml, getQueryParams } from './xml-helpers.js';
 
 export default async function handler(req, res) {
   try {
@@ -14,6 +7,7 @@ export default async function handler(req, res) {
     
     if (!ids.trim()) {
       res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'Missing ids parameter' }));
       return;
     }
@@ -23,6 +17,7 @@ export default async function handler(req, res) {
     const apiKey = req.bggApiKey || process.env.BGG_API_KEY;
     if (!apiKey) {
       res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'API key not configured' }));
       return;
     }
@@ -39,19 +34,27 @@ export default async function handler(req, res) {
     );
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`BGG API error ${response.status}:`, errorText.slice(0, 500));
       res.statusCode = response.status;
-      res.end(JSON.stringify({ error: 'BGG API error' }));
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'BGG API error', status: response.status, details: errorText.slice(0, 200) }));
       return;
     }
 
     const text = await response.text();
-    res.setHeader('Content-Type', 'application/xml');
+    
+    // Parse XML to JSON on the server
+    const result = parseDetailsXml(text);
+    
+    res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'public, max-age=3600');
     res.statusCode = 200;
-    res.end(text);
+    res.end(JSON.stringify(result));
   } catch (error) {
     console.error('Error proxying BGG details:', error);
     res.statusCode = 500;
+    res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({ error: 'Internal server error' }));
   }
 }

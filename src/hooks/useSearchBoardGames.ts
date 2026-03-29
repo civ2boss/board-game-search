@@ -49,7 +49,10 @@ export function useSearchBoardGames(query: string) {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const ids = searchQuery.data?.map(item => item.id) || [];
+  const allIds = searchQuery.data?.map(item => item.id) || [];
+  // Cap details fetch to avoid BGG API URL length limits
+  const MAX_DETAILS = 50;
+  const ids = allIds.slice(0, MAX_DETAILS);
 
   const detailsQuery = useQuery({
     queryKey: ['details', ids],
@@ -60,7 +63,7 @@ export function useSearchBoardGames(query: string) {
 
   return {
     results: detailsQuery.data || [],
-    allIds: ids,
+    allIds,
     isLoading: searchQuery.isLoading || detailsQuery.isLoading,
     isFetching: searchQuery.isFetching || detailsQuery.isFetching,
     error: searchQuery.error || detailsQuery.error,
