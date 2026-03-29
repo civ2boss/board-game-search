@@ -39,24 +39,15 @@ export function useImageDetails(gameIds: string[]) {
       let isMounted = true;
 
       fetch(`/api/bgg/details?ids=${uncachedIds.join(',')}`)
-        .then(response => response.text())
-        .then(text => {
+        .then(response => response.json())
+        .then(data => {
           if (!isMounted) return;
-
-          const parser = new DOMParser();
-          const xmlDoc = parser.parseFromString(text, 'text/xml');
-          const items = xmlDoc.getElementsByTagName('item');
 
           const newDetails: Record<string, ImageDetails> = { ...initialDetails };
           const promises: Promise<void>[] = [];
 
-          Array.from(items).forEach(item => {
-            const id = item.getAttribute('id');
-            const imageElement = item.querySelector('image');
-            const imageUrl = imageElement?.textContent;
-            const size = imageElement?.getAttribute('size');
-
-            if (id && imageUrl) {
+          (data.items || []).forEach((item: { id: string; image: string; image_size: number | null }) => {
+            if (item.id && item.image) {
               promises.push(
                 new Promise<void>((resolve) => {
                   const img = new Image();
@@ -66,15 +57,15 @@ export function useImageDetails(gameIds: string[]) {
                     const details: ImageDetails = {
                       width: img.width,
                       height: img.height,
-                      size: size ? `${(parseInt(size) / (1024 * 1024)).toFixed(2)}MB` : undefined,
+                      size: item.image_size ? `${(item.image_size / (1024 * 1024)).toFixed(2)}MB` : undefined,
                     };
                     
-                    imageDetailsCache.set(id, details);
-                    newDetails[id] = details;
+                    imageDetailsCache.set(item.id, details);
+                    newDetails[item.id] = details;
                     resolve();
                   };
                   img.onerror = () => resolve();
-                  img.src = proxyImageUrl(imageUrl);
+                  img.src = proxyImageUrl(item.image);
                 })
               );
             }
