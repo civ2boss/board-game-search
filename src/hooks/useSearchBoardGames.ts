@@ -65,8 +65,9 @@ export function useSearchBoardGames(query: string) {
   const detailsQuery = useQuery({
     queryKey: ['details', idsKey],
     queryFn: () => fetchDetails(ids),
-    enabled: ids.length > 0,
+    enabled: idsKey.length > 0,
     staleTime: 5 * 60 * 1000,
+    retry: false, // Don't retry 400 errors
   });
 
   return {
