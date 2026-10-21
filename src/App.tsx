@@ -7,7 +7,6 @@ import { SearchBar } from './components/SearchBar';
 import { GameGrid } from './components/GameGrid';
 import { Game } from './types';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
-import * as Sentry from '@sentry/react';
 
 const queryClient = new QueryClient();
 
@@ -84,23 +83,6 @@ function App() {
           )}
 
           <GameGrid games={games} removeGame={removeGame} />
-
-          {/* TEMPORARY: Sentry verification button — remove after confirming the event lands */}
-          <div className="text-center mt-8">
-            <button
-              type="button"
-              onClick={() =>
-                Sentry.startSpan({ op: 'test', name: 'Example Frontend Span' }, () => {
-                  setTimeout(() => {
-                    throw new Error('Sentry Test Error');
-                  }, 99);
-                })
-              }
-              className="px-4 py-2 text-sm text-red-600 border border-red-300 rounded hover:bg-red-50"
-            >
-              Break the world (Sentry test)
-            </button>
-          </div>
         </div>
       </div>
       <Toaster />
