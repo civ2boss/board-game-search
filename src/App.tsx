@@ -34,7 +34,7 @@ function App() {
       const response = await fetch(`/api/bgg/details?ids=${gameId}&stats=1`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      
+
       if (data.items && data.items.length > 0) {
         const item = data.items[0];
         const newGame: Game = {
