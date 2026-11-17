@@ -21,7 +21,7 @@
     "posthog-js": "^1.357.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "sharp": "^0.34.3",
+    "sharp": "^0.35.5",
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7"
   },
